@@ -1,0 +1,16 @@
+name = "umami-digest"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[vars]
+SITE_NAME = "example.com"
+UMAMI_URL = "https://stats.example.com"
+UMAMI_WEBSITE_ID = "your-website-uuid"
+REPORT_TO = "you@example.com"
+REPORT_FROM = "reports@example.com"
+# "daily" or "weekly" — sets the lookback window and email copy.
+# Keep this in sync with the cron below: daily -> "0 8 * * *", weekly -> "0 8 * * 1".
+REPORT_PERIOD = "weekly"
+
+[triggers]
+crons = ["0 8 * * 1"]
