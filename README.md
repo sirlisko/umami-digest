@@ -7,9 +7,7 @@ A tiny analytics email digest for [Umami Analytics](https://umami.is/) v3+, runn
 Each report includes:
 
 - Visitors, pageviews, average time on site, and bounce rate
-- Top 5 pages and referrers
-- Top browsers and devices
-- Top 5 countries
+- Top pages, referrers, browsers, devices, and countries (5 of each by default, configurable)
 
 ## Requirements
 
@@ -41,21 +39,22 @@ UMAMI_URL = "https://stats.example.com"
 UMAMI_WEBSITE_ID = "your-website-uuid"
 REPORT_TO = "you@example.com"
 REPORT_FROM = "reports@example.com"
+REPORT_TOP_N = 5
 
 [vars.REPORT_TIMES]
 weekly = "mon 08:00"
 monthly = "1 08:00"
 ```
 
-`SITE_NAME` shows up in the email header, subject line, and avatar initial. The website UUID is in the URL when you open the site in Umami's Settings → Websites screen.
+`SITE_NAME` shows up in the email header, subject line, and avatar initial. The website UUID is in the URL when you open the site in Umami's Settings → Websites screen. `REPORT_TOP_N` controls how many entries appear in each of the five ranked lists (pages, referrers, browsers, devices, countries) - default 5 if omitted.
 
 `[vars.REPORT_TIMES]` is where you pick which digests you want and when, in plain UTC time - no cron syntax to write:
 
-| Key       | Format             | Example       | Meaning                          |
-|-----------|--------------------|---------------|-----------------------------------|
-| `daily`   | `"HH:MM"`          | `"08:00"`     | every day at 08:00 UTC            |
-| `weekly`  | `"<day> HH:MM"`    | `"mon 08:00"` | every Monday at 08:00 UTC (`sun`-`sat` or `0`-`6`) |
-| `monthly` | `"<day-of-month> HH:MM"` | `"1 08:00"` | the 1st of each month at 08:00 UTC |
+| Key       | Format                   | Example       | Meaning                                            |
+|-----------|--------------------------|---------------|----------------------------------------------------|
+| `daily`   | `"HH:MM"`                | `"08:00"`     | every day at 08:00 UTC                             |
+| `weekly`  | `"<day> HH:MM"`          | `"mon 08:00"` | every Monday at 08:00 UTC (`sun`-`sat` or `0`-`6`) |
+| `monthly` | `"<day-of-month> HH:MM"` | `"1 08:00"`   | the 1st of each month at 08:00 UTC                 |
 
 Include any combination - one, two, or all three. `[triggers].crons` right below it is *generated* from this: `npm run dev` and `npm run deploy` regenerate it automatically before running, and `npm run sync-crons` regenerates it on demand without deploying. Don't hand-edit `crons` - it gets overwritten. If you want a cadence `REPORT_TIMES` can't express (e.g. twice a week), skip `REPORT_TIMES` entirely and hand-write cron strings directly into `crons` instead; the worker infers each digest's period from the cron's shape either way (day-of-month fixed → monthly, day-of-week fixed → weekly, neither → daily).
 
@@ -105,7 +104,7 @@ Both run in CI on every push and pull request against `main`.
 
 - `src/index.ts` - the Worker's `scheduled` entrypoint; wires the pieces below together
 - `src/schedule.ts` - infers the digest period (`daily`/`weekly`/`monthly`) from the shape of whichever cron fired
-- `src/umami.ts` - logs in against `/api/auth/login` for a bearer token, then fetches `/stats` and `/metrics` (`type=path`, `referrer`, `browser`, `device`, `country`) for the configured window
+- `src/umami.ts` - logs in against `/api/auth/login` for a bearer token, then fetches `/stats` and `/metrics` (`type=path`, `referrer`, `browser`, `device`, `country`, each limited to `REPORT_TOP_N`) for the configured window
 - `src/email.ts` - the HTML email template (`render()`) and its formatting helpers
 - `src/resend.ts` - sends the rendered email through the Resend API
 - `src/types.ts` - the shared `Env`/`Stats`/`Collected` types

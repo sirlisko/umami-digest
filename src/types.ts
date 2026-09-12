@@ -4,6 +4,7 @@ export interface Env {
   UMAMI_WEBSITE_ID: string;
   REPORT_TO: string;
   REPORT_FROM: string;
+  REPORT_TOP_N?: number;
   UMAMI_USERNAME: string;
   UMAMI_PASSWORD: string;
   RESEND_API_KEY: string;

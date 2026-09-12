@@ -8,6 +8,8 @@ UMAMI_URL = "https://stats.example.com"
 UMAMI_WEBSITE_ID = "your-website-uuid"
 REPORT_TO = "you@example.com"
 REPORT_FROM = "reports@example.com"
+# How many top pages/referrers/browsers/devices/countries to list per digest.
+REPORT_TOP_N = 5
 
 # Pick which digests you want and when, in plain UTC time - no cron syntax.
 # `npm run dev` / `npm run deploy` regenerate [triggers].crons from this

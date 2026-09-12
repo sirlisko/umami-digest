@@ -1,6 +1,7 @@
 import type { Collected, Env, Metric, Period, Stats } from "./types";
 
 const PERIOD_DAYS: Record<Period, number> = { daily: 1, weekly: 7, monthly: 30 };
+const DEFAULT_TOP_N = 5;
 
 async function login(env: Env): Promise<string> {
   const res = await fetch(`${env.UMAMI_URL}/api/auth/login`, {
@@ -21,6 +22,7 @@ export async function collect(env: Env, period: Period): Promise<Collected> {
   const endAt = Date.now();
   const startAt = endAt - days * 864e5;
   const qs = `startAt=${startAt}&endAt=${endAt}`;
+  const topN = env.REPORT_TOP_N ?? DEFAULT_TOP_N;
 
   const get = async <T>(path: string): Promise<T> => {
     const res = await fetch(`${base}${path}`, { headers });
@@ -30,11 +32,11 @@ export async function collect(env: Env, period: Period): Promise<Collected> {
 
   const [stats, pages, referrers, browsers, devices, countries] = await Promise.all([
     get<Stats>(`/stats?${qs}`),
-    get<Metric[]>(`/metrics?${qs}&type=path&limit=5`),
-    get<Metric[]>(`/metrics?${qs}&type=referrer&limit=5`),
-    get<Metric[]>(`/metrics?${qs}&type=browser&limit=4`),
-    get<Metric[]>(`/metrics?${qs}&type=device&limit=4`),
-    get<Metric[]>(`/metrics?${qs}&type=country&limit=5`),
+    get<Metric[]>(`/metrics?${qs}&type=path&limit=${topN}`),
+    get<Metric[]>(`/metrics?${qs}&type=referrer&limit=${topN}`),
+    get<Metric[]>(`/metrics?${qs}&type=browser&limit=${topN}`),
+    get<Metric[]>(`/metrics?${qs}&type=device&limit=${topN}`),
+    get<Metric[]>(`/metrics?${qs}&type=country&limit=${topN}`),
   ]);
 
   return { siteName: env.SITE_NAME, stats, pages, referrers, browsers, devices, countries, startAt, endAt, period };
