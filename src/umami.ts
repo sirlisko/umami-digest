@@ -1,4 +1,6 @@
-import type { Collected, Env, Metric, Stats } from "./types";
+import type { Collected, Env, Metric, Period, Stats } from "./types";
+
+const PERIOD_DAYS: Record<Period, number> = { daily: 1, weekly: 7, monthly: 30 };
 
 async function login(env: Env): Promise<string> {
   const res = await fetch(`${env.UMAMI_URL}/api/auth/login`, {
@@ -11,11 +13,11 @@ async function login(env: Env): Promise<string> {
   return token;
 }
 
-export async function collect(env: Env): Promise<Collected> {
+export async function collect(env: Env, period: Period): Promise<Collected> {
   const token = await login(env);
   const headers = { Authorization: `Bearer ${token}` };
   const base = `${env.UMAMI_URL}/api/websites/${env.UMAMI_WEBSITE_ID}`;
-  const days = env.REPORT_PERIOD === "daily" ? 1 : 7;
+  const days = PERIOD_DAYS[period];
   const endAt = Date.now();
   const startAt = endAt - days * 864e5;
   const qs = `startAt=${startAt}&endAt=${endAt}`;
@@ -35,5 +37,5 @@ export async function collect(env: Env): Promise<Collected> {
     get<Metric[]>(`/metrics?${qs}&type=country&limit=5`),
   ]);
 
-  return { siteName: env.SITE_NAME, stats, pages, referrers, browsers, devices, countries, startAt, endAt, days };
+  return { siteName: env.SITE_NAME, stats, pages, referrers, browsers, devices, countries, startAt, endAt, period };
 }

@@ -26,7 +26,7 @@ const baseCollected = {
   countries: [{ x: "US", y: 25 }],
   startAt: Date.parse("2026-08-21T00:00:00Z"),
   endAt: Date.parse("2026-08-28T00:00:00Z"),
-  days: 7 as const,
+  period: "weekly" as const,
 };
 
 describe("render", () => {
@@ -37,9 +37,15 @@ describe("render", () => {
   });
 
   it("labels a daily report and shows a single date", () => {
-    const html = render({ ...baseCollected, days: 1 });
+    const html = render({ ...baseCollected, period: "daily" });
     expect(html).toContain("Daily digest");
     expect(html).not.toContain("–");
+  });
+
+  it("labels a monthly report and shows a date range", () => {
+    const html = render({ ...baseCollected, period: "monthly" });
+    expect(html).toContain("Monthly digest");
+    expect(html).toContain("Aug 21 – Aug 28");
   });
 
   it("links the footer credit back to the repo", () => {

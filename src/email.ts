@@ -131,11 +131,11 @@ export function render({
   countries,
   startAt,
   endAt,
-  days,
+  period,
 }: Collected): string {
-  const isDaily = days === 1;
+  const isDaily = period === "daily";
   const dateRange = isDaily ? fmtDate(startAt) : `${fmtDate(startAt)} – ${fmtDate(endAt)}`;
-  const eyebrow = isDaily ? "Daily digest" : "Weekly digest";
+  const eyebrow = `${capitalize(period)} digest`;
   const { comparison } = stats;
 
   const bounceRate = stats.visits > 0 ? (stats.bounces / stats.visits) * 100 : 0;

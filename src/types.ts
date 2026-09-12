@@ -4,11 +4,12 @@ export interface Env {
   UMAMI_WEBSITE_ID: string;
   REPORT_TO: string;
   REPORT_FROM: string;
-  REPORT_PERIOD: "daily" | "weekly";
   UMAMI_USERNAME: string;
   UMAMI_PASSWORD: string;
   RESEND_API_KEY: string;
 }
+
+export type Period = "daily" | "weekly" | "monthly";
 
 export type Metric = { x: string; y: number };
 
@@ -40,5 +41,5 @@ export type Collected = {
   countries: Metric[];
   startAt: number;
   endAt: number;
-  days: 1 | 7;
+  period: Period;
 };

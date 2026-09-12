@@ -2,15 +2,18 @@
   "name": "umami-digest",
   "version": "0.1.0",
   "private": true,
-  "description": "Daily or weekly analytics email digest for Umami Analytics v3+, sent via Resend on a Cloudflare Worker cron trigger.",
+  "description": "Daily, weekly, and/or monthly analytics email digest for Umami Analytics v3+, sent via Resend on Cloudflare Worker cron triggers.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/sirlisko/umami-digest"
   },
   "scripts": {
+    "predev": "node scripts/sync-crons.mjs",
     "dev": "wrangler dev --test-scheduled",
+    "predeploy": "node scripts/sync-crons.mjs",
     "deploy": "wrangler deploy",
+    "sync-crons": "node scripts/sync-crons.mjs",
     "tail": "wrangler tail",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
