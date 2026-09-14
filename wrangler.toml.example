@@ -11,11 +11,10 @@ REPORT_FROM = "reports@example.com"
 # How many top pages/referrers/browsers/devices/countries to list per digest.
 REPORT_TOP_N = 5
 
-# Pick which digests you want and when, in plain UTC time - no cron syntax.
-# `npm run dev` / `npm run deploy` regenerate [triggers].crons from this
-# automatically (also: `npm run sync-crons` to preview without deploying).
-# Add or remove a line for each digest; comment one out to turn it off.
-[vars.REPORT_TIMES]
-# daily = "08:00"           # every day at 08:00 UTC
-weekly = "mon 08:00"        # every Monday at 08:00 UTC
-monthly = "1 08:00"         # the 1st of each month at 08:00 UTC
+# Which digests to send, and when (UTC). All periods share REPORT_TIME and run
+# from one Cron Trigger; `npm run dev`/`deploy`/`sync-crons` regenerate
+# [triggers].crons from these.
+REPORT_PERIODS = ["daily", "weekly", "monthly"]
+REPORT_TIME = "08:00"
+REPORT_WEEKLY_DAY = "mon"   # sun-sat or 0-6; required if "weekly" is enabled
+REPORT_MONTHLY_DAY = 1      # 1-31; required if "monthly" is enabled

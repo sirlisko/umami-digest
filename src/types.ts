@@ -5,6 +5,10 @@ export interface Env {
   REPORT_TO: string;
   REPORT_FROM: string;
   REPORT_TOP_N?: number;
+  REPORT_PERIODS: Period[];
+  REPORT_TIME: string;
+  REPORT_WEEKLY_DAY?: string;
+  REPORT_MONTHLY_DAY?: number;
   UMAMI_USERNAME: string;
   UMAMI_PASSWORD: string;
   RESEND_API_KEY: string;

@@ -1,90 +1,69 @@
-// Regenerates [triggers].crons in wrangler.toml from the human-readable
-// [vars.REPORT_TIMES] block, so schedules are edited in one place ("weekly at
-// 8am Monday") instead of hand-written cron syntax. Runs automatically before
-// `npm run dev` / `npm run deploy`; safe to run standalone via
-// `npm run sync-crons`. A no-op if wrangler.toml has no REPORT_TIMES block.
+// Regenerates [triggers].crons in wrangler.toml from REPORT_TIME/REPORT_PERIODS
+// under [vars]. Runs automatically before `npm run dev` / `npm run deploy`;
+// standalone via `npm run sync-crons`. A no-op if those vars aren't set.
+//
+// The generated cron always fires daily at REPORT_TIME, regardless of which
+// periods are enabled - the worker decides at runtime (src/schedule.ts) which
+// digests are actually due, using REPORT_WEEKLY_DAY/REPORT_MONTHLY_DAY.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const DAY_NAMES = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 const PERIODS = ["daily", "weekly", "monthly"];
 
-function parseTime(raw, context) {
+function parseTime(raw) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(raw);
-  if (!m) throw new Error(`Invalid ${context} — expected a "HH:MM" time (24h, UTC), got "${raw}"`);
+  if (!m) throw new Error(`Invalid REPORT_TIME — expected "HH:MM" (24h, UTC), got "${raw}"`);
   const hour = Number(m[1]);
   const minute = Number(m[2]);
-  if (hour > 23 || minute > 59) throw new Error(`Invalid ${context} — hour must be 0-23 and minute 0-59, got "${raw}"`);
+  if (hour > 23 || minute > 59) throw new Error(`Invalid REPORT_TIME — hour must be 0-23 and minute 0-59, got "${raw}"`);
   return { hour, minute };
 }
 
-function cronForDaily(value) {
-  const { hour, minute } = parseTime(value.trim(), 'REPORT_TIMES.daily (expected "HH:MM")');
-  return `${minute} ${hour} * * *`;
+// { time: "08:00", periods: ["daily", "weekly"] } -> ["0 8 * * *"]
+export function cronFromReportConfig(time, periods) {
+  if (periods.length === 0) return [];
+  for (const p of periods) {
+    if (!PERIODS.includes(p)) throw new Error(`Unknown REPORT_PERIODS entry "${p}" — expected one of: ${PERIODS.join(", ")}`);
+  }
+  const { hour, minute } = parseTime(time);
+  return [`${minute} ${hour} * * *`];
 }
 
-function cronForWeekly(value) {
-  const m = /^(\S+)\s+(\d{1,2}:\d{2})$/.exec(value.trim());
-  if (!m) throw new Error(`Invalid REPORT_TIMES.weekly — expected "<day> HH:MM" (e.g. "mon 08:00"), got "${value}"`);
-  const [, dayRaw, time] = m;
-  const day = dayRaw.toLowerCase();
-  const dow = day in DAY_NAMES ? DAY_NAMES[day] : /^[0-6]$/.test(day) ? Number(day) : undefined;
-  if (dow === undefined) {
-    throw new Error(`Invalid REPORT_TIMES.weekly day "${dayRaw}" — use sun/mon/tue/wed/thu/fri/sat or 0-6`);
-  }
-  const { hour, minute } = parseTime(time, 'REPORT_TIMES.weekly time (expected "HH:MM")');
-  return `${minute} ${hour} * * ${dow}`;
+function extractVar(tomlText, key) {
+  const m = new RegExp(`^${key}\\s*=\\s*(.+?)\\s*(?:#.*)?$`, "m").exec(tomlText);
+  return m?.[1];
 }
 
-function cronForMonthly(value) {
-  const m = /^(\d{1,2})\s+(\d{1,2}:\d{2})$/.exec(value.trim());
-  if (!m) {
-    throw new Error(`Invalid REPORT_TIMES.monthly — expected "<day-of-month> HH:MM" (e.g. "1 08:00"), got "${value}"`);
-  }
-  const [, domRaw, time] = m;
-  const dom = Number(domRaw);
-  if (dom < 1 || dom > 31) throw new Error(`Invalid REPORT_TIMES.monthly day-of-month "${domRaw}" — must be 1-31`);
-  const { hour, minute } = parseTime(time, 'REPORT_TIMES.monthly time (expected "HH:MM")');
-  return `${minute} ${hour} ${dom} * *`;
-}
+// Pulls REPORT_TIME/REPORT_PERIODS/REPORT_WEEKLY_DAY/REPORT_MONTHLY_DAY out
+// of a wrangler.toml. Returns null if neither REPORT_TIME nor REPORT_PERIODS
+// is present.
+export function extractReportConfig(tomlText) {
+  const time = extractVar(tomlText, "REPORT_TIME");
+  const periodsRaw = extractVar(tomlText, "REPORT_PERIODS");
+  if (time === undefined && periodsRaw === undefined) return null;
 
-const CRON_FOR = { daily: cronForDaily, weekly: cronForWeekly, monthly: cronForMonthly };
+  const periods = periodsRaw
+    ? periodsRaw
+        .slice(1, -1)
+        .split(",")
+        .map((s) => s.trim().replace(/^"|"$/g, ""))
+        .filter(Boolean)
+    : [];
 
-// Turns { weekly: "mon 08:00", monthly: "1 08:00" } into ["0 8 * * 1", "0 8 1 * *"].
-export function cronsFromReportTimes(times) {
-  for (const key of Object.keys(times)) {
-    if (!PERIODS.includes(key)) {
-      throw new Error(`Unknown REPORT_TIMES key "${key}" — expected one of: ${PERIODS.join(", ")}`);
-    }
-  }
-  return PERIODS.filter((period) => times[period] !== undefined).map((period) => CRON_FOR[period](times[period]));
-}
-
-// Pulls the [vars.REPORT_TIMES] table out of a wrangler.toml as a plain
-// { period: "value" } map. Returns null if the section isn't present.
-export function extractReportTimes(tomlText) {
-  const lines = tomlText.split(/\r?\n/);
-  const start = lines.findIndex((line) => line.trim() === "[vars.REPORT_TIMES]");
-  if (start === -1) return null;
-
-  const times = {};
-  for (const line of lines.slice(start + 1)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("[")) break; // next table header
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const kv = /^(\w+)\s*=\s*"([^"]*)"\s*(#.*)?$/.exec(trimmed);
-    if (!kv) throw new Error(`Couldn't parse REPORT_TIMES line: "${line}"`);
-    times[kv[1]] = kv[2];
-  }
-  return times;
+  return {
+    time: time?.replace(/^"|"$/g, ""),
+    periods,
+    weeklyDay: extractVar(tomlText, "REPORT_WEEKLY_DAY")?.replace(/^"|"$/g, ""),
+    monthlyDay: extractVar(tomlText, "REPORT_MONTHLY_DAY"),
+  };
 }
 
 // Prepended whenever a crons line is newly created (not just re-valued), so a
 // fresh wrangler.toml (it's gitignored - never committed) always ends up
 // self-documenting, without relying on wrangler.toml.example being copied.
 const GENERATED_COMMENT = [
-  "# Generated from [vars.REPORT_TIMES] above - don't hand-edit, it's overwritten",
-  "# on the next `npm run dev`/`deploy`/`sync-crons`.",
+  "# Generated from REPORT_TIME/REPORT_PERIODS above - don't hand-edit, it's",
+  "# overwritten on the next `npm run dev`/`deploy`/`sync-crons`.",
 ];
 
 // Replaces the crons array under [triggers], leaving every other line
@@ -124,21 +103,29 @@ function main() {
     return;
   }
 
-  const times = extractReportTimes(text);
-  if (!times) {
-    console.log(`sync-crons: no [vars.REPORT_TIMES] block in ${path} — leaving [triggers].crons as-is`);
+  const config = extractReportConfig(text);
+  if (!config) {
+    console.log(`sync-crons: no REPORT_TIME/REPORT_PERIODS in ${path} — leaving [triggers].crons as-is`);
     return;
   }
+  if (config.time === undefined) throw new Error("REPORT_TIME is required when REPORT_PERIODS is set");
 
-  const crons = cronsFromReportTimes(times);
+  if (config.periods.includes("weekly") && config.weeklyDay === undefined) {
+    throw new Error('REPORT_PERIODS includes "weekly" but REPORT_WEEKLY_DAY is not set');
+  }
+  if (config.periods.includes("monthly") && config.monthlyDay === undefined) {
+    throw new Error('REPORT_PERIODS includes "monthly" but REPORT_MONTHLY_DAY is not set');
+  }
+
+  const crons = cronFromReportConfig(config.time, config.periods);
   const updated = replaceCrons(text, crons);
   if (updated === text) {
-    console.log(`sync-crons: [triggers].crons already matches REPORT_TIMES (${crons.join(", ")})`);
+    console.log(`sync-crons: [triggers].crons already matches REPORT_TIME/REPORT_PERIODS (${crons.join(", ")})`);
     return;
   }
 
   writeFileSync(path, updated);
-  console.log(`sync-crons: wrote [triggers].crons = ${JSON.stringify(crons)} from REPORT_TIMES`);
+  console.log(`sync-crons: wrote [triggers].crons = ${JSON.stringify(crons)}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

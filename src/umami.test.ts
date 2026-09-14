@@ -9,6 +9,8 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     UMAMI_WEBSITE_ID: "site-id",
     REPORT_TO: "you@example.com",
     REPORT_FROM: "reports@example.com",
+    REPORT_PERIODS: [],
+    REPORT_TIME: "08:00",
     UMAMI_USERNAME: "user",
     UMAMI_PASSWORD: "pass",
     RESEND_API_KEY: "key",
