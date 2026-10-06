@@ -129,6 +129,9 @@ export function render({
   browsers,
   devices,
   countries,
+  events,
+  utmSources,
+  utmCampaigns,
   startAt,
   endAt,
   period,
@@ -179,7 +182,20 @@ export function render({
       </td>
     </tr>
     ${metricSection("Top pages", pages)}
+    ${events.length ? metricSection("Top events", events) : ""}
     ${metricSection("Top referrers", referrers)}
+    ${
+      utmSources.length || utmCampaigns.length
+        ? `<tr>
+      <td style="padding:22px 32px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          ${metricColumn("UTM sources", utmSources, { emptyLabel: "(none)", truncateMax: 18 })}
+          ${metricColumn("UTM campaigns", utmCampaigns, { emptyLabel: "(none)", truncateMax: 18 })}
+        </tr></table>
+      </td>
+    </tr>`
+        : ""
+    }
     <tr>
       <td style="padding:22px 32px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>

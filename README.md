@@ -8,6 +8,7 @@ Each report includes:
 
 - Visitors, pageviews, average time on site, and bounce rate
 - Top pages, referrers, browsers, devices, and countries (5 of each by default, configurable)
+- Top custom events and UTM sources/campaigns, shown only when the period has any
 
 ## Requirements
 
@@ -47,7 +48,7 @@ REPORT_WEEKLY_DAY = "mon"
 REPORT_MONTHLY_DAY = 1
 ```
 
-`SITE_NAME` shows up in the email header, subject line, and avatar initial. The website UUID is in the URL when you open the site in Umami's Settings → Websites screen. `REPORT_TOP_N` controls how many entries appear in each of the five ranked lists (pages, referrers, browsers, devices, countries) - default 5 if omitted.
+`SITE_NAME` shows up in the email header, subject line, and avatar initial. The website UUID is in the URL when you open the site in Umami's Settings → Websites screen. `REPORT_TOP_N` controls how many entries appear in each ranked list (pages, events, referrers, UTM sources/campaigns, browsers, devices, countries) - default 5 if omitted.
 
 `REPORT_PERIODS` picks which digests you want, out of `daily`/`weekly`/`monthly`, in any combination. All of them share `REPORT_TIME` (`"HH:MM"`, UTC) and run from a single daily Cron Trigger; the worker itself decides which digests are due each time it fires (daily always, weekly only on `REPORT_WEEKLY_DAY` - `sun`-`sat` or `0`-`6` - monthly only on `REPORT_MONTHLY_DAY`, `1`-`31`). This is deliberate: Cloudflare silently coalesces multiple Cron Triggers landing on the same minute into one invocation, so giving each period its own trigger risks a dropped digest whenever two coincide. `[triggers].crons` is *generated* from these vars - `npm run dev`/`deploy` regenerate it automatically, `npm run sync-crons` on demand. Don't hand-edit `crons`.
 

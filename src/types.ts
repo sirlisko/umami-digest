@@ -44,6 +44,9 @@ export type Collected = {
   browsers: Metric[];
   devices: Metric[];
   countries: Metric[];
+  events: Metric[];
+  utmSources: Metric[];
+  utmCampaigns: Metric[];
   startAt: number;
   endAt: number;
   period: Period;

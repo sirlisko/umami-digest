@@ -24,6 +24,9 @@ const baseCollected = {
   browsers: [{ x: "chrome", y: 30 }],
   devices: [{ x: "desktop", y: 40 }],
   countries: [{ x: "US", y: 25 }],
+  events: [] as { x: string; y: number }[],
+  utmSources: [] as { x: string; y: number }[],
+  utmCampaigns: [] as { x: string; y: number }[],
   startAt: Date.parse("2026-08-21T00:00:00Z"),
   endAt: Date.parse("2026-08-28T00:00:00Z"),
   period: "weekly" as const,
@@ -62,6 +65,26 @@ describe("render", () => {
   it("falls back to a placeholder when a metric list is empty", () => {
     const html = render({ ...baseCollected, pages: [] });
     expect(html).toContain("No data for this period");
+  });
+
+  it("omits the events and UTM sections when they have no data", () => {
+    const html = render(baseCollected);
+    expect(html).not.toContain("Top events");
+    expect(html).not.toContain("UTM sources");
+    expect(html).not.toContain("UTM campaigns");
+  });
+
+  it("shows events and UTM sections when there is data", () => {
+    const html = render({
+      ...baseCollected,
+      events: [{ x: "signup", y: 7 }],
+      utmSources: [{ x: "newsletter", y: 4 }],
+    });
+    expect(html).toContain("Top events");
+    expect(html).toContain("signup");
+    expect(html).toContain("UTM sources");
+    expect(html).toContain("newsletter");
+    expect(html).toContain("UTM campaigns");
   });
 
   it("resolves country codes and capitalizes browser/device names", () => {

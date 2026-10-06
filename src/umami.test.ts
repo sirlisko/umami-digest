@@ -56,7 +56,7 @@ describe("collect", () => {
     await collect(makeEnv(), "weekly");
 
     const limits = urls.filter((u) => u.includes("/metrics")).map((u) => new URL(u).searchParams.get("limit"));
-    expect(limits).toEqual(["5", "5", "5", "5", "5"]);
+    expect(limits).toEqual(Array(8).fill("5"));
   });
 
   it("requests REPORT_TOP_N for every metric list when it's set", async () => {
@@ -65,6 +65,27 @@ describe("collect", () => {
     await collect(makeEnv({ REPORT_TOP_N: 3 }), "weekly");
 
     const limits = urls.filter((u) => u.includes("/metrics")).map((u) => new URL(u).searchParams.get("limit"));
-    expect(limits).toEqual(["3", "3", "3", "3", "3"]);
+    expect(limits).toEqual(Array(8).fill("3"));
+  });
+
+  it("falls back to empty lists when the instance rejects event/UTM metric types", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.includes("/api/auth/login")) return jsonResponse({ token: "t" });
+        if (url.includes("/stats?")) return jsonResponse(emptyStats);
+        if (/type=(event|utm)/.test(url)) {
+          return Promise.resolve({ ok: false, status: 400, text: () => Promise.resolve("bad type") } as unknown as Response);
+        }
+        return jsonResponse([{ x: "a", y: 1 }]);
+      }),
+    );
+
+    const data = await collect(makeEnv(), "weekly");
+
+    expect(data.events).toEqual([]);
+    expect(data.utmSources).toEqual([]);
+    expect(data.utmCampaigns).toEqual([]);
+    expect(data.pages).toEqual([{ x: "a", y: 1 }]);
   });
 });
