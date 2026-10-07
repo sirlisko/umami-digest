@@ -11,8 +11,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     REPORT_FROM: "reports@example.com",
     REPORT_PERIODS: [],
     REPORT_TIME: "08:00",
-    UMAMI_USERNAME: "user",
-    UMAMI_PASSWORD: "pass",
+    UMAMI_API_KEY: "umami_key",
     RESEND_API_KEY: "key",
     ...overrides,
   };
@@ -37,7 +36,6 @@ function stubFetch() {
     "fetch",
     vi.fn((url: string) => {
       urls.push(url);
-      if (url.includes("/api/auth/login")) return jsonResponse({ token: "t" });
       if (url.includes("/stats")) return jsonResponse(emptyStats);
       return jsonResponse([]);
     }),
@@ -50,6 +48,16 @@ afterEach(() => {
 });
 
 describe("collect", () => {
+  it("sends the API key as a bearer token on every request", async () => {
+    const fetchMock = vi.fn((url: string, _init?: RequestInit) => (url.includes("/stats") ? jsonResponse(emptyStats) : jsonResponse([])));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await collect(makeEnv(), "weekly");
+
+    const auths = fetchMock.mock.calls.map(([, init]) => init?.headers);
+    expect(auths).toEqual(Array(9).fill({ Authorization: "Bearer umami_key" }));
+  });
+
   it("requests the default top-N (5) for every metric list when REPORT_TOP_N isn't set", async () => {
     const urls = stubFetch();
 
@@ -72,7 +80,6 @@ describe("collect", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (url.includes("/api/auth/login")) return jsonResponse({ token: "t" });
         if (url.includes("/stats?")) return jsonResponse(emptyStats);
         if (/type=(event|utm)/.test(url)) {
           return Promise.resolve({ ok: false, status: 400, text: () => Promise.resolve("bad type") } as unknown as Response);

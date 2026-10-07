@@ -9,8 +9,7 @@ export interface Env {
   REPORT_TIME: string;
   REPORT_WEEKLY_DAY?: string;
   REPORT_MONTHLY_DAY?: number;
-  UMAMI_USERNAME: string;
-  UMAMI_PASSWORD: string;
+  UMAMI_API_KEY: string;
   RESEND_API_KEY: string;
 }
 

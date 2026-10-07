@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sirlisko/umami-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/sirlisko/umami-digest/actions/workflows/ci.yml)
 
-A tiny analytics email digest for [Umami Analytics](https://umami.is/) v3+, running as a scheduled [Cloudflare Worker](https://developers.cloudflare.com/workers/) and sent via [Resend](https://resend.com/). No server to run, no container, no cron box - a single Cloudflare Cron Trigger does the scheduling. Send daily, weekly, monthly, or any combination, all at the same time of day.
+A tiny analytics email digest for [Umami Analytics](https://umami.is/) v3.4+, running as a scheduled [Cloudflare Worker](https://developers.cloudflare.com/workers/) and sent via [Resend](https://resend.com/). No server to run, no container, no cron box - a single Cloudflare Cron Trigger does the scheduling. Send daily, weekly, monthly, or any combination, all at the same time of day.
 
 Each report includes:
 
@@ -12,7 +12,9 @@ Each report includes:
 
 ## Requirements
 
-- A self-hosted Umami v3+ instance with a login (username/password) - the worker authenticates via `/api/auth/login` and uses the returned bearer token
+- A self-hosted Umami v3.4+ instance and an API key for it (Settings → Profile → API keys) - the worker sends it as a bearer token. The key carries the full permissions of the user that created it, so consider creating it from a dedicated view-only user
+
+> **Upgrading from username/password auth:** earlier versions of this worker logged in with `UMAMI_USERNAME`/`UMAMI_PASSWORD`. Those are no longer read - add `UMAMI_API_KEY` (see [Add secrets](#3-add-secrets)), redeploy, then remove the old secrets with `npx wrangler secret delete UMAMI_USERNAME` and `npx wrangler secret delete UMAMI_PASSWORD`. API keys need Umami v3.4+; on an older instance, stay on the commit before this change.
 - A [Resend](https://resend.com/) account with a verified sending domain
 - A [Cloudflare](https://dash.cloudflare.com/) account
 - Node.js and `npx`
@@ -57,8 +59,7 @@ Then redeploy.
 ### 3. Add secrets
 
 ```bash
-npx wrangler secret put UMAMI_USERNAME
-npx wrangler secret put UMAMI_PASSWORD
+npx wrangler secret put UMAMI_API_KEY
 npx wrangler secret put RESEND_API_KEY
 ```
 
@@ -68,14 +69,14 @@ Secrets go to Cloudflare, never into the repo or `wrangler.toml`.
 
 ```bash
 cp .dev.vars.example .dev.vars
-# fill in UMAMI_USERNAME, UMAMI_PASSWORD, and RESEND_API_KEY in .dev.vars
+# fill in UMAMI_API_KEY and RESEND_API_KEY in .dev.vars
 
 npm run dev
 # in another shell:
 curl "http://localhost:8787/__scheduled?cron=0+8+*+*+1"
 ```
 
-Point `REPORT_TO` at a throwaway address for the first couple of runs. A 401 on the `/api/auth/login` call means the username/password is wrong; a 401 on `/stats` or `/metrics` after a successful login usually means the account can't access that website; a 403 from Resend means the sending domain isn't verified yet.
+Point `REPORT_TO` at a throwaway address for the first couple of runs. A 401 from Umami means the API key is wrong or revoked, or the key's user can't access that website; a 403 from Resend means the sending domain isn't verified yet.
 
 ### 5. Deploy
 
@@ -98,7 +99,7 @@ Both run in CI on every push and pull request against `main`.
 
 - `src/index.ts` - the Worker's `scheduled` entrypoint; wires the pieces below together
 - `src/schedule.ts` - decides which digest periods (`daily`/`weekly`/`monthly`) are due on the date the Cron Trigger fired
-- `src/umami.ts` - logs in against `/api/auth/login` for a bearer token, then fetches `/stats` and `/metrics` (`type=path`, `referrer`, `browser`, `device`, `country`, each limited to `REPORT_TOP_N`) for the configured window
+- `src/umami.ts` - authenticates with the API key as a bearer token and fetches `/stats` and `/metrics` (`type=path`, `referrer`, `browser`, `device`, `country`, each limited to `REPORT_TOP_N`) for the configured window
 - `src/email.ts` - the HTML email template (`render()`) and its formatting helpers
 - `src/resend.ts` - sends the rendered email through the Resend API
 - `src/types.ts` - the shared `Env`/`Stats`/`Collected` types

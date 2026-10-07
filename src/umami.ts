@@ -3,20 +3,8 @@ import type { Collected, Env, Metric, Period, Stats } from "./types";
 const PERIOD_DAYS: Record<Period, number> = { daily: 1, weekly: 7, monthly: 30 };
 const DEFAULT_TOP_N = 5;
 
-async function login(env: Env): Promise<string> {
-  const res = await fetch(`${env.UMAMI_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: env.UMAMI_USERNAME, password: env.UMAMI_PASSWORD }),
-  });
-  if (!res.ok) throw new Error(`login → ${res.status} ${await res.text()}`);
-  const { token } = (await res.json()) as { token: string };
-  return token;
-}
-
 export async function collect(env: Env, period: Period): Promise<Collected> {
-  const token = await login(env);
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${env.UMAMI_API_KEY}` };
   const base = `${env.UMAMI_URL}/api/websites/${env.UMAMI_WEBSITE_ID}`;
   const days = PERIOD_DAYS[period];
   const endAt = Date.now();
